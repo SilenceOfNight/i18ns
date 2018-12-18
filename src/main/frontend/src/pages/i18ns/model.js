@@ -14,6 +14,7 @@ const State = {
   VISIBLE_CREATE_NAMESPACE: 'visibleCreateNamespace',
   VISIBLE_CREATE_LANGUAGE: 'visibleCreateLanguage',
   VISIBLE_CREATE_RECORD: 'visibleCreateRecord',
+  SELECTEDS: 'selecteds',
 };
 
 const ActionType = {
@@ -27,17 +28,20 @@ const ActionType = {
   QUERY_RECORDS: 'queryRecords',
   SET_RECORDS: 'setRecords',
   TOGGLE_VISIBLE_CREATE_LANGUAGE: 'toggleVisibleCreateLanguage',
-  CREATE_LANGAUGE: 'createLangauge',
+  CREATE_LANGUAGE: 'createLanguage',
+  DELETE_LANGUAGE: 'deleteLanguage',
   TOGGLE_VISIBLE_CREATE_RECORD: 'toggleVisibleCreateRecord',
   CREATE_RECORD: 'createRecord',
   SET_RECORD: 'setRecord',
   CHANGE_RECORD: 'changeRecord',
   MODIFY_RECORD: 'modifyRecord',
   DELETE_RECORD: 'deleteRecord',
+  SELECT_RECORDS: 'selectRecords',
+  DELETE_RECORDS: 'deleteRecords',
 };
 
-const innerAction = action();
-const outerAction = action(namespace);
+const invorkAction = action();
+const exportAction = action(namespace);
 
 export default {
   namespace,
@@ -49,6 +53,7 @@ export default {
     [State.VISIBLE_CREATE_NAMESPACE]: false,
     [State.VISIBLE_CREATE_LANGUAGE]: false,
     [State.VISIBLE_CREATE_RECORD]: false,
+    [State.SELECTEDS]: [],
   },
   reducers: {
     [ActionType.TOGGLE_VISIBLE_CREATE_NAMESPACE](state) {
@@ -101,18 +106,26 @@ export default {
       const { [State.RECORD]: preRecord } = state;
       return { ...state, [State.RECORD]: { ...preRecord, ...changeFileds } };
     },
+    [ActionType.SELECT_RECORDS](state, action) {
+      const { payload } = action;
+      return { ...state, [State.SELECTEDS]: payload };
+    },
   },
   effects: {
     *[ActionType.CREATE_NAMESPACE](action, effects) {
-      const { payload: {namespace, success} } = action;
-      const { call, put } = effects;
+      const {
+        payload: { namespace, success },
+      } = action;
+      const { call, put, all } = effects;
       const { error, data } = yield call(i18n.createNamespace, namespace);
       if (error) {
         message.error(error.message);
         return;
       }
-      yield put(innerAction(ActionType.UPDATE_NAMESPACE)(data));
-      yield put(innerAction(ActionType.SET_NAMESPACE_ID)(data.id));
+      yield all([
+        put(invorkAction(ActionType.UPDATE_NAMESPACE)(data)),
+        put(invorkAction(ActionType.SET_NAMESPACE_ID)(data.id)),
+      ]);
       success && success(data);
     },
     *[ActionType.DELETE_NAMESPACE](action, effects) {
@@ -129,27 +142,29 @@ export default {
         return;
       }
       message.success('成功删除命名空间。');
-      yield put(innerAction(ActionType.SET_NAMESPACES)(queryData));
+      yield put(invorkAction(ActionType.SET_NAMESPACES)(queryData));
       if (queryData && queryData.length) {
         const { id } = queryData[0];
-        yield put(innerAction(ActionType.SET_NAMESPACE_ID)(id));
+        yield put(invorkAction(ActionType.SET_NAMESPACE_ID)(id));
       }
     },
     *[ActionType.QUERY_NAMESPACES](action, effects) {
-      const { payload: { success } } = action;
+      const {
+        payload: { success },
+      } = action;
       const { call, put } = effects;
       const { data, error } = yield call(i18n.queryNamespaces);
       if (error) {
         message.error(error.message);
         return;
       }
-      yield put(innerAction(ActionType.SET_NAMESPACES)(data));
+      yield put(invorkAction(ActionType.SET_NAMESPACES)(data));
       success && success(data);
     },
     *[ActionType.SET_NAMESPACE_ID](action, effects) {
       const { payload: namespaceId } = action;
       const { put } = effects;
-      yield put(innerAction(ActionType.QUERY_RECORDS)(namespaceId));
+      yield put(invorkAction(ActionType.QUERY_RECORDS)(namespaceId));
     },
     *[ActionType.CREATE_LANGUAGE](action, effects) {
       const {
@@ -162,44 +177,65 @@ export default {
         return;
       }
       message.success('成功添加语言。');
-      yield put(innerAction(ActionType.UPDATE_NAMESPACE)(data));
+      yield put(invorkAction(ActionType.UPDATE_NAMESPACE)(data));
+      success && success(data);
+    },
+    *[ActionType.DELETE_LANGUAGE](action, effects) {
+      const {
+        payload: { namespaceId, language, success },
+      } = action;
+      const { call, put } = effects;
+      const { data, error } = yield call(i18n.deleteLanguage, namespaceId, language);
+      if (error) {
+        message.error(error.message);
+        return;
+      }
+      message.success('成功删除语言。');
+      yield put(invorkAction(ActionType.UPDATE_NAMESPACE)(data));
       success && success(data);
     },
     *[ActionType.QUERY_RECORDS](action, effects) {
       const { payload: namespaceId } = action;
-      const { call, put } = effects;
+      const { call, put, all } = effects;
       const { data, error } = yield call(i18n.queryRecords, namespaceId);
       if (error) {
         message.error(error.message);
         return;
       }
-      yield put(innerAction(ActionType.SET_RECORDS)(data));
+      yield all([
+        put(invorkAction(ActionType.SET_RECORDS)(data)),
+        put(invorkAction(ActionType.SELECT_RECORDS)([])),
+      ]);
     },
     *[ActionType.CREATE_RECORD](action, effects) {
       const { payload } = action;
       const { namespaceId, record } = payload;
-      const { call, put } = effects;
+      const { call, put, all } = effects;
       const { error } = yield call(i18n.createRecord, namespaceId, record);
       if (error) {
         message.error(error.message);
         return;
       }
       message.success('成功添加资源。');
-      yield put(innerAction(ActionType.QUERY_RECORDS)(namespaceId));
-      yield put(innerAction(ActionType.TOGGLE_VISIBLE_CREATE_RECORD)());
+      yield all([
+        put(invorkAction(ActionType.QUERY_RECORDS)(namespaceId)),
+        put(invorkAction(ActionType.TOGGLE_VISIBLE_CREATE_RECORD)()),
+      ]);
     },
     *[ActionType.MODIFY_RECORD](action, effects) {
       const { payload } = action;
       const { namespaceId, recordId, record } = payload;
-      const { call, put } = effects;
+      const { call, put, all } = effects;
       const { error } = yield call(i18n.modifyRecord, namespaceId, recordId, record);
       if (error) {
         message.error(error.message);
         return;
       }
       message.success('成功修改资源。');
-      yield put(innerAction(ActionType.QUERY_RECORDS)(namespaceId));
-      yield put(innerAction(ActionType.SET_RECORD)(null));
+      yield all([
+        put(invorkAction(ActionType.QUERY_RECORDS)(namespaceId)),
+        put(invorkAction(ActionType.SET_RECORD)(null)),
+      ]);
     },
     *[ActionType.DELETE_RECORD](action, effects) {
       const { payload } = action;
@@ -211,25 +247,42 @@ export default {
         return;
       }
       message.success('成功删除资源。');
-      yield put(innerAction(ActionType.QUERY_RECORDS)(namespaceId));
+      yield put(invorkAction(ActionType.QUERY_RECORDS)(namespaceId));
+    },
+    *[ActionType.DELETE_RECORDS](action, effects) {
+      const { payload } = action;
+      const { namespaceId, recordIds } = payload;
+      const { call, put } = effects;
+      const { error } = yield call(i18n.deleteRecords, namespaceId, recordIds);
+      if (error) {
+        message.error(error.message);
+        return;
+      }
+      message.success('成功删除资源。');
+      yield put(invorkAction(ActionType.QUERY_RECORDS)(namespaceId));
     },
   },
 };
 
-export const toggleVisibleCreateNamespace = outerAction(ActionType.TOGGLE_VISIBLE_CREATE_NAMESPACE);
-export const createNamespace = outerAction(ActionType.CREATE_NAMESPACE);
-export const deleteNamespace = outerAction(ActionType.DELETE_NAMESPACE);
-export const queryNamespaces = outerAction(ActionType.QUERY_NAMESPACES);
-export const setNamespaceId = outerAction(ActionType.SET_NAMESPACE_ID);
-export const queryRecords = outerAction(ActionType.QUERY_RECORDS);
-export const toggleVisibleCreateLanguage = outerAction(ActionType.TOGGLE_VISIBLE_CREATE_LANGUAGE);
-export const createLanguage = outerAction(ActionType.CREATE_LANGUAGE);
-export const toggleVisibleCreateRecord = outerAction(ActionType.TOGGLE_VISIBLE_CREATE_RECORD);
-export const createRecord = outerAction(ActionType.CREATE_RECORD);
-export const setRecord = outerAction(ActionType.SET_RECORD);
-export const changeRecord = outerAction(ActionType.CHANGE_RECORD);
-export const modifyRecord = outerAction(ActionType.MODIFY_RECORD);
-export const deleteRecord = outerAction(ActionType.DELETE_RECORD);
+export const toggleVisibleCreateNamespace = exportAction(
+  ActionType.TOGGLE_VISIBLE_CREATE_NAMESPACE
+);
+export const createNamespace = exportAction(ActionType.CREATE_NAMESPACE);
+export const deleteNamespace = exportAction(ActionType.DELETE_NAMESPACE);
+export const queryNamespaces = exportAction(ActionType.QUERY_NAMESPACES);
+export const setNamespaceId = exportAction(ActionType.SET_NAMESPACE_ID);
+export const queryRecords = exportAction(ActionType.QUERY_RECORDS);
+export const toggleVisibleCreateLanguage = exportAction(ActionType.TOGGLE_VISIBLE_CREATE_LANGUAGE);
+export const createLanguage = exportAction(ActionType.CREATE_LANGUAGE);
+export const deleteLanguage = exportAction(ActionType.DELETE_LANGUAGE);
+export const toggleVisibleCreateRecord = exportAction(ActionType.TOGGLE_VISIBLE_CREATE_RECORD);
+export const createRecord = exportAction(ActionType.CREATE_RECORD);
+export const setRecord = exportAction(ActionType.SET_RECORD);
+export const changeRecord = exportAction(ActionType.CHANGE_RECORD);
+export const modifyRecord = exportAction(ActionType.MODIFY_RECORD);
+export const deleteRecord = exportAction(ActionType.DELETE_RECORD);
+export const selectRecords = exportAction(ActionType.SELECT_RECORDS);
+export const deleteRecords = exportAction(ActionType.DELETE_RECORDS);
 
 const getState = state => {
   return state[namespace];
@@ -282,6 +335,13 @@ export const getRecords = createSelector(
   [getState],
   state => {
     return state[State.RECORDS];
+  }
+);
+
+export const getSelecteds = createSelector(
+  [getState],
+  state => {
+    return state[State.SELECTEDS];
   }
 );
 

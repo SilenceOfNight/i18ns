@@ -5,16 +5,21 @@ import { mapStateToProps, mapDispatchToProps } from '@/utils/redux';
 import {
   queryRecords,
   toggleVisibleCreateLanguage,
+  deleteLanguage,
   toggleVisibleCreateRecord,
   createRecord,
   setRecord,
   modifyRecord,
   deleteRecord,
+  selectRecords,
+  deleteRecords,
   getRecords,
+  getSelecteds,
 } from '@/pages/i18ns/model';
 import CreateLanguage from './CreateLanguage';
 import CreateRecord from './CreateRecord';
 import ModifyRecord from './ModifyRecord';
+import { LanguageColumn } from './components';
 import { Button, Dropdown, Menu, Modal, Table } from 'antd';
 import { CopyableText, withTooltip } from '@/components';
 import moment from 'moment';
@@ -57,25 +62,18 @@ class I18nPage extends PureComponent {
   };
 
   handleSelectRow = selectedRowKeys => {
-    console.log(selectedRowKeys);
-    this.setState({ selectedRowKeys });
+    const { selectRecords } = this.props;
+    selectRecords(selectedRowKeys);
   };
 
   handleDeleteRecords = () => {
-    const { namespace, deleteRecords } = this.props;
-    const { selectedRowKeys: recordIds } = this.state;
+    const { namespace, deleteRecords, recordIds } = this.props;
     const { id: namespaceId } = namespace;
     Modal.confirm({
       title: '确定删除国际化资源？',
       content: '危险操作，被删除的国际化资源将无法还原。',
       onOk: () => {
-        deleteRecords({
-          namespaceId,
-          recordIds,
-          success: () => {
-            this.handleSelectRow([]);
-          },
-        });
+        deleteRecords({ namespaceId, recordIds });
       },
     });
   };
@@ -95,29 +93,29 @@ class I18nPage extends PureComponent {
   render() {
     const {
       records,
+      recordIds,
       namespace,
       toggleVisibleCreateLanguage,
       toggleVisibleCreateRecord,
     } = this.props;
-    const { selectedRowKeys } = this.state;
     const { languages } = namespace;
 
     return (
       <Container>
         <div className="i18n-namespace-page-header">
-          <Button type="primary" icon="plus" onClick={toggleVisibleCreateLanguage}>
-            添加语种
-          </Button>
-
           <Button type="primary" icon="plus" onClick={toggleVisibleCreateRecord}>
             添加资源
           </Button>
 
-          {!selectedRowKeys.length ? null : (
+          {!recordIds.length ? null : (
             <Button type="danger" icon="delete" onClick={this.handleDeleteRecords}>
               删除资源
             </Button>
           )}
+
+          <Button type="primary" icon="plus" onClick={toggleVisibleCreateLanguage}>
+            添加语种
+          </Button>
         </div>
         <Table
           columns={[
@@ -133,7 +131,23 @@ class I18nPage extends PureComponent {
               const { value, name } = language;
               return {
                 key: value,
-                title: `${name}(${value})`,
+                title: (
+                  <LanguageColumn
+                    onDelete={() => {
+                      const { deleteLanguage, namespace } = this.props;
+                      const { id: namespaceId } = namespace;
+                      Modal.confirm({
+                        title: `确定删除语种${name}？`,
+                        content: '危险操作，语种删除后相应的资源信息也会丢失。',
+                        onOk: () => {
+                          deleteLanguage({ namespaceId, language: value });
+                        },
+                      });
+                    }}
+                  >
+                    {name}
+                  </LanguageColumn>
+                ),
                 render: record => {
                   const { values } = record;
                   const languageValue = values.find(({ language }) => {
@@ -197,7 +211,7 @@ class I18nPage extends PureComponent {
           dataSource={records}
           rowKey="id"
           rowSelection={{
-            selectedRowKeys,
+            selectedRowKeys: recordIds,
             onChange: this.handleSelectRow,
           }}
           pagination={{
@@ -217,14 +231,18 @@ class I18nPage extends PureComponent {
 export default connect(
   mapStateToProps({
     records: getRecords,
+    recordIds: getSelecteds,
   }),
   mapDispatchToProps({
     queryRecords,
     toggleVisibleCreateLanguage,
+    deleteLanguage,
     toggleVisibleCreateRecord,
     createRecord,
     setRecord,
     modifyRecord,
     deleteRecord,
+    selectRecords,
+    deleteRecords,
   })
 )(I18nPage);

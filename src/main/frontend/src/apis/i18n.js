@@ -18,6 +18,10 @@ export const createLanguage = (namespaceId, language) => {
   return http.post(`${CONTEXT}/namespaces/${namespaceId}/languages`, language);
 };
 
+export const deleteLanguage = (namespaceId, language) => {
+  return http.delete(`${CONTEXT}/namespaces/${namespaceId}/languages/${language}`);
+};
+
 export const queryRecords = namespaceId => {
   return http.get(`${CONTEXT}/namespaces/${namespaceId}/records`);
 };
@@ -32,4 +36,8 @@ export const modifyRecord = (namespaceId, recordId, record) => {
 
 export const deleteRecord = (namespaceId, recordId) => {
   return http.delete(`${CONTEXT}/namespaces/${namespaceId}/records/${recordId}`);
+};
+
+export const deleteRecords = (namespaceId, recordIds) => {
+  return http.delete(`${CONTEXT}/namespaces/${namespaceId}/records`, { data: recordIds });
 };

@@ -162,11 +162,14 @@ public class I18nHandler {
 
     public Mono<ServerResponse> deleteRecords(ServerRequest request) {
         String namespaceID = request.pathVariable("namespaceID");
-        request.bodyToMono(new ParameterizedTypeReference<List<String>>() {
-        }).subscribe(recordIds -> {
-            System.out.println(recordIds);
-        });
-        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).build();
+        Flux<Record> flux = request.bodyToMono(new ParameterizedTypeReference<List<String>>() {
+        }).flatMapMany(Flux::fromIterable).flatMap(recordId -> {
+            Namespace namespace = Namespace.builder().id(namespaceID).build();
+            Record record = Record.builder().namespace(namespace).id(recordId).build();
+            Example<Record> example = Example.of(record);
+            return this.recordRepository.findOne(example);
+        }).flatMap(model -> this.recordRepository.delete(model).thenReturn(model));
+        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(flux, Record.class);
     }
 
     public Mono<ServerResponse> queryLanguages(ServerRequest request) {
