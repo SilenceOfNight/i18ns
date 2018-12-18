@@ -15,8 +15,9 @@ import {
 import CreateLanguage from './CreateLanguage';
 import CreateRecord from './CreateRecord';
 import ModifyRecord from './ModifyRecord';
-import { Button, Modal, Table } from 'antd';
+import { Button, Dropdown, Menu, Modal, Table } from 'antd';
 import { CopyableText, withTooltip } from '@/components';
+import moment from 'moment';
 
 const TooltipButton = withTooltip()(Button);
 
@@ -56,6 +57,7 @@ class I18nPage extends PureComponent {
   };
 
   handleSelectRow = selectedRowKeys => {
+    console.log(selectedRowKeys);
     this.setState({ selectedRowKeys });
   };
 
@@ -67,7 +69,13 @@ class I18nPage extends PureComponent {
       title: '确定删除国际化资源？',
       content: '危险操作，被删除的国际化资源将无法还原。',
       onOk: () => {
-        deleteRecords({ namespaceId, recordIds });
+        deleteRecords({
+          namespaceId,
+          recordIds,
+          success: () => {
+            this.handleSelectRow([]);
+          },
+        });
       },
     });
   };
@@ -135,8 +143,21 @@ class I18nPage extends PureComponent {
                     return null;
                   }
 
+                  const { value: text, modifyAt, verifyAt } = languageValue;
+                  let verified = modifyAt && verifyAt && moment(modifyAt).isBefore(verifyAt);
+                  if (verified) {
+                    return <CopyableText tips={`复制成功`}>{text}</CopyableText>;
+                  }
                   return (
-                    <CopyableText tips={`成功复制${name}内容`}>{languageValue.value}</CopyableText>
+                    <Dropdown
+                      overlay={
+                        <Menu>
+                          <Menu.Item>校验通过</Menu.Item>
+                        </Menu>
+                      }
+                    >
+                      <CopyableText tips={`复制成功`}>{text}</CopyableText>
+                    </Dropdown>
                   );
                 },
               };
@@ -174,6 +195,7 @@ class I18nPage extends PureComponent {
             },
           ]}
           dataSource={records}
+          rowKey="id"
           rowSelection={{
             selectedRowKeys,
             onChange: this.handleSelectRow,

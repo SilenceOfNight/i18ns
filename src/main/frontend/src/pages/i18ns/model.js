@@ -104,34 +104,16 @@ export default {
   },
   effects: {
     *[ActionType.CREATE_NAMESPACE](action, effects) {
-      // const { payload: namespace } = action;
-      // const { call, put } = effects;
-      // const { error: createError, data: createData } = yield call(i18n.createNamespace, namespace);
-      // if (createError) {
-      //   message.error(createError.message);
-      //   return;
-      // }
-      // const {
-      //   data: { id },
-      // } = createData;
-      // const { error: queryError, data: queryData } = yield call(i18n.queryNamespaces);
-      // if (queryError) {
-      //   message.error(queryError.message);
-      //   return;
-      // }
-      // yield put(innerAction(ActionType.SET_NAMESPACES)(queryData));
-      // yield put(innerAction(ActionType.SET_NAMESPACE_ID)(id));
-      const { payload: namespace } = action;
+      const { payload: {namespace, success} } = action;
       const { call, put } = effects;
       const { error, data } = yield call(i18n.createNamespace, namespace);
       if (error) {
         message.error(error.message);
         return;
       }
-      const { data: newNamespace } = data;
-      yield put(innerAction(ActionType.UPDATE_NAMESPACE)(newNamespace));
-      yield put(innerAction(ActionType.SET_NAMESPACE_ID)(newNamespace.id));
-      yield put(innerAction(ActionType.TOGGLE_VISIBLE_CREATE_NAMESPACE)());
+      yield put(innerAction(ActionType.UPDATE_NAMESPACE)(data));
+      yield put(innerAction(ActionType.SET_NAMESPACE_ID)(data.id));
+      success && success(data);
     },
     *[ActionType.DELETE_NAMESPACE](action, effects) {
       const { payload: namespaceId } = action;
@@ -146,6 +128,7 @@ export default {
         message.error(queryError.message);
         return;
       }
+      message.success('成功删除命名空间。');
       yield put(innerAction(ActionType.SET_NAMESPACES)(queryData));
       if (queryData && queryData.length) {
         const { id } = queryData[0];
@@ -153,6 +136,7 @@ export default {
       }
     },
     *[ActionType.QUERY_NAMESPACES](action, effects) {
+      const { payload: { success } } = action;
       const { call, put } = effects;
       const { data, error } = yield call(i18n.queryNamespaces);
       if (error) {
@@ -160,6 +144,7 @@ export default {
         return;
       }
       yield put(innerAction(ActionType.SET_NAMESPACES)(data));
+      success && success(data);
     },
     *[ActionType.SET_NAMESPACE_ID](action, effects) {
       const { payload: namespaceId } = action;
@@ -168,7 +153,7 @@ export default {
     },
     *[ActionType.CREATE_LANGUAGE](action, effects) {
       const {
-        payload: { namespaceId, language },
+        payload: { namespaceId, language, success },
       } = action;
       const { call, put } = effects;
       const { data, error } = yield call(i18n.createLanguage, namespaceId, language);
@@ -176,9 +161,9 @@ export default {
         message.error(error.message);
         return;
       }
-      const { data: newNamespace } = data;
-      yield put(innerAction(ActionType.UPDATE_NAMESPACE)(newNamespace));
-      yield put(innerAction(ActionType.TOGGLE_VISIBLE_CREATE_LANGUAGE)());
+      message.success('成功添加语言。');
+      yield put(innerAction(ActionType.UPDATE_NAMESPACE)(data));
+      success && success(data);
     },
     *[ActionType.QUERY_RECORDS](action, effects) {
       const { payload: namespaceId } = action;
@@ -199,7 +184,7 @@ export default {
         message.error(error.message);
         return;
       }
-      message.success('操作成功');
+      message.success('成功添加资源。');
       yield put(innerAction(ActionType.QUERY_RECORDS)(namespaceId));
       yield put(innerAction(ActionType.TOGGLE_VISIBLE_CREATE_RECORD)());
     },
@@ -212,7 +197,7 @@ export default {
         message.error(error.message);
         return;
       }
-      message.success('操作成功');
+      message.success('成功修改资源。');
       yield put(innerAction(ActionType.QUERY_RECORDS)(namespaceId));
       yield put(innerAction(ActionType.SET_RECORD)(null));
     },
@@ -225,7 +210,7 @@ export default {
         message.error(error.message);
         return;
       }
-      message.success('操作成功');
+      message.success('成功删除资源。');
       yield put(innerAction(ActionType.QUERY_RECORDS)(namespaceId));
     },
   },

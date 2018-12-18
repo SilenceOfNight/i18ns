@@ -14,11 +14,13 @@ const { Item: FormItem } = Form;
 
 class CreateI18nNamespace extends PureComponent {
   handleOk = () => {
-    const { createNamespace, form } = this.props;
+    const { createNamespace, toggleVisibleCreateNamespace, form } = this.props;
     const { validateFields } = form;
     validateFields((error, namespace) => {
       if (!error) {
-        createNamespace(namespace);
+        createNamespace({namespace, success(namespace){
+          toggleVisibleCreateNamespace();
+        }});
       }
     });
   };

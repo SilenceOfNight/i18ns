@@ -14,11 +14,13 @@ const { Item: FormItem } = Form;
 
 class CreateLanguage extends PureComponent {
   handleOk = () => {
-    const { namespaceId, createLanguage, form } = this.props;
+    const { namespaceId, createLanguage, toggleVisibleCreateLanguage, form } = this.props;
     const { validateFields } = form;
     validateFields((error, language) => {
       if (!error) {
-        createLanguage({ namespaceId, language });
+        createLanguage({ namespaceId, language, success(){
+          toggleVisibleCreateLanguage();
+        } });
       }
     });
   };

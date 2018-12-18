@@ -39,7 +39,7 @@ public class TokenHandler {
         return request.bodyToMono(AuthReqDTO.class)
                 .flatMap(auth -> this.userRepository.findUserByAccount(auth.getAccount()))
                 .flatMap(user -> ServerResponse.ok().body(BodyInserters.fromObject(RespDTO.of(RespCode.SUCCESS, ConvertorUtils.convert(user, UserDTO.class)))))
-                .switchIfEmpty(ServerResponse.badRequest().body(BodyInserters.fromObject(RespDTO.of(RespCode.USER_NOT_EXIST))));
+                .switchIfEmpty(ServerResponse.badRequest().body(BodyInserters.fromObject(RespDTO.of(RespCode.USER_DOES_NOT_EXIST))));
     }
 
 

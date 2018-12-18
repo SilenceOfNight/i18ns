@@ -35,7 +35,7 @@ public interface I18nMapper {
      * @param dto the converting DTO of Record
      * @return the converted model of Record
      */
-    Record fromCreateRecord(RecordCreateDTO dto);
+    Record fromOperateRecord(RecordOperateDTO dto);
 
     /**
      * Convert from the model to DTO of Namespace

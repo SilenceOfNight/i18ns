@@ -30,12 +30,12 @@ public enum RespCode {
     /**
      * 用户已存在
      */
-    USER_EXIST("00000100", "User does exist."),
+    USER_DOES_EXIST("00000100", "User does exist."),
 
     /**
      * 用户不存在
      */
-    USER_NOT_EXIST("00000101", "User does not exist."),
+    USER_DOES_NOT_EXIST("00000101", "User does not exist."),
 
     /**
      * 鉴权失败
@@ -45,22 +45,24 @@ public enum RespCode {
     /**
      * 命名空间不存在
      */
-    NAMESPACE_NOT_EXIST("00000300", "Namespace does not exist."),
+    NAMESPACE_DOES_NOT_EXIST("00000300", "Namespace does not exist."),
 
     /**
-     * 语言不存在
+     * 语言不被支持
      */
-    LANGAUGE_NOT_EXIST("00000310", "Language does not exist."),
+    LANGUAGE_DOES_NOT_BE_SUPPORTED("00000310", "Language does not be supported."),
 
     /**
      * 语言已存在
      */
-    LANGAUGE_EXIST("00000311", "Language does exist."),
+    LANGUAGE_DOES_EXIST("00000311", "Language does exist."),
+
+    NO_LANGUAGE("00000312", "There is no language in the namespace."),
 
     /**
      * 记录不存在
      */
-    RECORD_NOT_EXIST("00000320", "Record does not exist.");
+    RECORD_DOES_NOT_EXIST("00000320", "Record does not exist.");
 
     RespCode(String code, String description) {
         this.code = code;

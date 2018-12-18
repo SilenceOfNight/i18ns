@@ -6,10 +6,7 @@ import com.demo.i18nmgt.apis.user.handler.UserHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
-import org.springframework.web.reactive.function.server.RequestPredicates;
-import org.springframework.web.reactive.function.server.RouterFunction;
-import org.springframework.web.reactive.function.server.RouterFunctions;
-import org.springframework.web.reactive.function.server.ServerResponse;
+import org.springframework.web.reactive.function.server.*;
 
 /**
  * RouterConfiguration
@@ -48,11 +45,13 @@ public class RouterConfiguration {
                 .andRoute(RequestPredicates.GET("/apis/v1/i18n/namespaces/{namespaceID}/languages").and(RequestPredicates.accept(MediaType.APPLICATION_JSON)), handler::queryLanguages)
                 .andRoute(RequestPredicates.POST("/apis/v1/i18n/namespaces/{namespaceID}/languages").and(RequestPredicates.accept(MediaType.APPLICATION_JSON)), handler::createLanguage)
                 .andRoute(RequestPredicates.PUT("/apis/v1/i18n/namespaces/{namespaceID}/languages/{language}").and(RequestPredicates.accept(MediaType.APPLICATION_JSON)), handler::modifyLanguages)
-                .andRoute(RequestPredicates.DELETE("/apis/v1/i18n/namespaces/{namespaceID}/languages/{language}").and(RequestPredicates.accept(MediaType.APPLICATION_JSON)), handler::deleteLanguages)
+                .andRoute(RequestPredicates.DELETE("/apis/v1/i18n/namespaces/{namespaceID}/languages/{language}").and(RequestPredicates.accept(MediaType.APPLICATION_JSON)), handler::deleteLanguage)
+                .andRoute(RequestPredicates.POST("/apis/v1/i18n/namespaces/{namespaceID}/languages/{language}/records").and(RequestPredicates.accept(MediaType.APPLICATION_JSON)), handler::importRecords)
                 .andRoute(RequestPredicates.GET("/apis/v1/i18n/namespaces/{namespaceID}/records").and(RequestPredicates.accept(MediaType.APPLICATION_JSON)), handler::queryRecords)
                 .andRoute(RequestPredicates.GET("/apis/v1/i18n/namespaces/{namespaceID}/records/{id}").and(RequestPredicates.accept(MediaType.APPLICATION_JSON)), handler::queryRecord)
                 .andRoute(RequestPredicates.POST("/apis/v1/i18n/namespaces/{namespaceID}/records").and(RequestPredicates.accept(MediaType.APPLICATION_JSON)), handler::createRecord)
                 .andRoute(RequestPredicates.PUT("/apis/v1/i18n/namespaces/{namespaceID}/records/{id}").and(RequestPredicates.accept(MediaType.APPLICATION_JSON)), handler::modifyRecord)
+                .andRoute(RequestPredicates.DELETE("/apis/v1/i18n/namespaces/{namespaceID}/records").and(RequestPredicates.accept(MediaType.APPLICATION_JSON)), handler::deleteRecords)
                 .andRoute(RequestPredicates.DELETE("/apis/v1/i18n/namespaces/{namespaceID}/records/{id}").and(RequestPredicates.accept(MediaType.APPLICATION_JSON)), handler::deleteRecord)
                 .andRoute(RequestPredicates.PUT("/apis/v1/i18n/namespaces/{namespaceID}/records/{recordID}/languages/{language}").and(RequestPredicates.accept(MediaType.APPLICATION_JSON_UTF8)), handler::verifyRecord);
 

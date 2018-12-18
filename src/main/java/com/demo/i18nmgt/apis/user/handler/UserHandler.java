@@ -44,8 +44,8 @@ public class UserHandler {
         String account = request.pathVariable("account");
         return this.repository.findUserByAccount(account)
                 .map(this.userMapper::userModel2DTO)
-                .flatMap(dto -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(RespDTO.success(dto))))
-                .switchIfEmpty(ServerResponse.badRequest().body(BodyInserters.fromObject(RespDTO.of(RespCode.USER_NOT_EXIST))));
+                .flatMap(dto -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(dto)))
+                .switchIfEmpty(ServerResponse.badRequest().body(BodyInserters.fromObject(RespDTO.of(RespCode.USER_DOES_NOT_EXIST))));
     }
 
     public Mono<ServerResponse> createUser(ServerRequest request) {
@@ -74,14 +74,14 @@ public class UserHandler {
                 .flatMap(this.repository::save)
                 .map(this.userMapper::userModel2DTO)
                 .flatMap(dto -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(dto)))
-                .switchIfEmpty(ServerResponse.badRequest().body(fromObject(RespDTO.of(RespCode.USER_NOT_EXIST))));
+                .switchIfEmpty(ServerResponse.badRequest().body(fromObject(RespDTO.of(RespCode.USER_DOES_NOT_EXIST))));
     }
 
     public Mono<ServerResponse> deleteUser(ServerRequest request) {
         String account = request.pathVariable("account");
 
         return this.repository.findUserByAccount(account)
-                .flatMap(model -> this.repository.delete(model).then(ServerResponse.ok().body(fromObject(RespDTO.SUCCESS))))
-                .switchIfEmpty(ServerResponse.badRequest().body(fromObject(RespDTO.of(RespCode.USER_NOT_EXIST))));
+                .flatMap(model -> this.repository.delete(model).then(ServerResponse.ok().build()))
+                .switchIfEmpty(ServerResponse.badRequest().body(fromObject(RespDTO.of(RespCode.USER_DOES_NOT_EXIST))));
     }
 }

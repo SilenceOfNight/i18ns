@@ -12,6 +12,7 @@ import com.demo.i18nmgt.repository.i18n.model.LanguageValue;
 import com.demo.i18nmgt.repository.i18n.model.Namespace;
 import com.demo.i18nmgt.repository.i18n.model.Record;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.Example;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,7 @@ import reactor.core.publisher.Mono;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * I18nHandler
@@ -51,8 +53,8 @@ public class I18nHandler {
     public Mono<ServerResponse> queryNamespace(ServerRequest request) {
         return this.namespaceRepository.findById(request.pathVariable("id"))
                 .map(this.i18nMapper::toNamespace)
-                .flatMap(data -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(BodyInserters.fromObject(RespDTO.success(data))))
-                .switchIfEmpty(ServerResponse.badRequest().contentType(MediaType.APPLICATION_JSON).body(BodyInserters.fromObject(RespDTO.of(RespCode.NAMESPACE_NOT_EXIST))));
+                .flatMap(data -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(BodyInserters.fromObject(data)))
+                .switchIfEmpty(ServerResponse.badRequest().contentType(MediaType.APPLICATION_JSON).body(BodyInserters.fromObject(RespDTO.of(RespCode.NAMESPACE_DOES_NOT_EXIST))));
 
     }
 
@@ -66,7 +68,7 @@ public class I18nHandler {
                 })
                 .flatMap(this.namespaceRepository::insert)
                 .map(this.i18nMapper::toNamespace)
-                .flatMap(data -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(RespDTO.success(data))))
+                .flatMap(data -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(data)))
                 .onErrorResume(error -> ServerResponse.badRequest().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(RespDTO.of(error))));
     }
 
@@ -78,8 +80,8 @@ public class I18nHandler {
         return this.recordRepository.findAll(example)
                 .flatMap(this.recordRepository::delete)
                 .then(this.namespaceRepository.findById(namespaceID)
-                        .flatMap(model -> this.namespaceRepository.delete(model).then(ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(BodyInserters.fromObject(RespDTO.SUCCESS))))
-                        .switchIfEmpty(ServerResponse.badRequest().contentType(MediaType.APPLICATION_JSON).body(BodyInserters.fromObject(RespDTO.of(RespCode.NAMESPACE_NOT_EXIST)))));
+                        .flatMap(model -> this.namespaceRepository.delete(model).then(ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).build())))
+                .switchIfEmpty(ServerResponse.badRequest().contentType(MediaType.APPLICATION_JSON).body(BodyInserters.fromObject(RespDTO.of(RespCode.NAMESPACE_DOES_NOT_EXIST))));
     }
 
     public Mono<ServerResponse> queryRecords(ServerRequest request) {
@@ -98,19 +100,19 @@ public class I18nHandler {
         return this.recordRepository.findOne(example)
                 .map(this.i18nMapper::toRecord)
                 .flatMap(data -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(data)))
-                .switchIfEmpty(ServerResponse.badRequest().body(BodyInserters.fromObject(RespDTO.of(RespCode.RECORD_NOT_EXIST))));
+                .switchIfEmpty(ServerResponse.badRequest().body(BodyInserters.fromObject(RespDTO.of(RespCode.RECORD_DOES_NOT_EXIST))));
     }
 
     public Mono<ServerResponse> createRecord(ServerRequest request) {
         return namespaceRepository.findById(request.pathVariable("namespaceID"))
-                .switchIfEmpty(Mono.error(new InternalException(RespCode.NAMESPACE_NOT_EXIST)))
-                .zipWith(request.bodyToMono(RecordCreateDTO.class).map(this.i18nMapper::fromCreateRecord), (namespace, record) -> {
+                .switchIfEmpty(Mono.error(new InternalException(RespCode.NAMESPACE_DOES_NOT_EXIST)))
+                .zipWith(request.bodyToMono(RecordOperateDTO.class).map(this.i18nMapper::fromOperateRecord), (namespace, record) -> {
                     List<Language> languages = namespace.getLanguages();
                     List<LanguageValue> languageValues = record.getValues();
                     for (LanguageValue languageValue : languageValues) {
                         String language = languageValue.getLanguage();
                         if (!existLanguage(language, languages)) {
-                            throw new InternalException(RespCode.LANGAUGE_NOT_EXIST);
+                            throw new InternalException(RespCode.LANGUAGE_DOES_NOT_BE_SUPPORTED);
                         }
                         languageValue.setCreateAt(new Date());
                     }
@@ -121,7 +123,7 @@ public class I18nHandler {
                 })
                 .flatMap(this.recordRepository::insert)
                 .map(this.i18nMapper::toRecord)
-                .flatMap(data -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(RespDTO.success(data))))
+                .flatMap(data -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(data)))
                 .onErrorResume(error -> ServerResponse.badRequest().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(RespDTO.of(error))));
     }
 
@@ -140,11 +142,11 @@ public class I18nHandler {
         Example<Record> example = Example.of(record);
 
         return this.recordRepository.findOne(example)
-                .switchIfEmpty(Mono.error(new InternalException(RespCode.RECORD_NOT_EXIST)))
-                .zipWith(request.bodyToMono(RecordCreateDTO.class).map(this.i18nMapper::fromCreateRecord), this::coverRecord)
+                .switchIfEmpty(Mono.error(new InternalException(RespCode.RECORD_DOES_NOT_EXIST)))
+                .zipWith(request.bodyToMono(RecordOperateDTO.class).map(this.i18nMapper::fromOperateRecord), this::mergeRecord)
                 .flatMap(this.recordRepository::save)
                 .map(this.i18nMapper::toRecord)
-                .flatMap(data -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(RespDTO.success(data))))
+                .flatMap(data -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(data)))
                 .onErrorResume(error -> ServerResponse.badRequest().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(RespDTO.of(error))));
     }
 
@@ -154,24 +156,33 @@ public class I18nHandler {
         Example<Record> example = Example.of(record);
 
         return this.recordRepository.findOne(example)
-                .flatMap(model -> this.recordRepository.delete(model).then(ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(RespDTO.SUCCESS))))
-                .switchIfEmpty(ServerResponse.badRequest().body(BodyInserters.fromObject(RespDTO.of(RespCode.RECORD_NOT_EXIST))));
+                .flatMap(model -> this.recordRepository.delete(model).then(ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).build()))
+                .switchIfEmpty(ServerResponse.badRequest().body(BodyInserters.fromObject(RespDTO.of(RespCode.RECORD_DOES_NOT_EXIST))));
+    }
+
+    public Mono<ServerResponse> deleteRecords(ServerRequest request) {
+        String namespaceID = request.pathVariable("namespaceID");
+        request.bodyToMono(new ParameterizedTypeReference<List<String>>() {
+        }).subscribe(recordIds -> {
+            System.out.println(recordIds);
+        });
+        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).build();
     }
 
     public Mono<ServerResponse> queryLanguages(ServerRequest request) {
         String namespaceID = request.pathVariable("namespaceID");
         return this.namespaceRepository.findById(namespaceID)
-                .switchIfEmpty(Mono.error(new InternalException(RespCode.NAMESPACE_NOT_EXIST)))
+                .switchIfEmpty(Mono.error(new InternalException(RespCode.NAMESPACE_DOES_NOT_EXIST)))
                 .map(Namespace::getLanguages)
                 .map(i18nMapper::toLanguages)
-                .flatMap(data -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(RespDTO.success(data))))
+                .flatMap(data -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(data)))
                 .onErrorResume(error -> ServerResponse.badRequest().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(RespDTO.of(error))));
     }
 
     public Mono<ServerResponse> createLanguage(ServerRequest request) {
         String namespaceID = request.pathVariable("namespaceID");
         return this.namespaceRepository.findById(namespaceID)
-                .switchIfEmpty(Mono.error(new InternalException(RespCode.NAMESPACE_NOT_EXIST)))
+                .switchIfEmpty(Mono.error(new InternalException(RespCode.NAMESPACE_DOES_NOT_EXIST)))
                 .zipWith(request.bodyToMono(LanguageDTO.class).map(this.i18nMapper::fromLanguage), (namespace, language) -> {
                     List<Language> languages = namespace.getLanguages();
                     if (languages == null) {
@@ -180,7 +191,7 @@ public class I18nHandler {
                     } else {
                         Language preLanguage = existLanguage(language.getValue(), namespace);
                         if (preLanguage != null) {
-                            throw new InternalException(RespCode.LANGAUGE_EXIST);
+                            throw new InternalException(RespCode.LANGUAGE_DOES_EXIST);
                         }
                     }
                     languages.add(language);
@@ -188,7 +199,7 @@ public class I18nHandler {
                 })
                 .flatMap(this.namespaceRepository::save)
                 .map(this.i18nMapper::toNamespace)
-                .flatMap(data -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(RespDTO.success(data))))
+                .flatMap(data -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(data)))
                 .onErrorResume(error -> ServerResponse.badRequest().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(RespDTO.of(error))));
     }
 
@@ -196,11 +207,11 @@ public class I18nHandler {
         String namespaceID = request.pathVariable("namespaceID");
         String language = request.pathVariable("language");
         return this.namespaceRepository.findById(namespaceID)
-                .switchIfEmpty(Mono.error(new InternalException(RespCode.NAMESPACE_NOT_EXIST)))
+                .switchIfEmpty(Mono.error(new InternalException(RespCode.NAMESPACE_DOES_NOT_EXIST)))
                 .zipWith(request.bodyToMono(LanguageDTO.class).map(this.i18nMapper::fromLanguage), (namespace, reqLanguage) -> {
                     Language preLanguage = existLanguage(language, namespace);
                     if (preLanguage == null) {
-                        throw new InternalException(RespCode.LANGAUGE_NOT_EXIST);
+                        throw new InternalException(RespCode.LANGUAGE_DOES_NOT_BE_SUPPORTED);
                     }
                     if (reqLanguage.getName() != null) {
                         preLanguage.setName(reqLanguage.getName());
@@ -217,15 +228,15 @@ public class I18nHandler {
                 .onErrorResume(error -> ServerResponse.badRequest().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(RespDTO.of(error))));
     }
 
-    public Mono<ServerResponse> deleteLanguages(ServerRequest request) {
+    public Mono<ServerResponse> deleteLanguage(ServerRequest request) {
         String namespaceID = request.pathVariable("namespaceID");
         String language = request.pathVariable("language");
         return this.namespaceRepository.findById(namespaceID)
-                .switchIfEmpty(Mono.error(new InternalException(RespCode.NAMESPACE_NOT_EXIST)))
+                .switchIfEmpty(Mono.error(new InternalException(RespCode.NAMESPACE_DOES_NOT_EXIST)))
                 .map(namespace -> {
                     Language preLanguage = existLanguage(language, namespace);
                     if (preLanguage == null) {
-                        throw new InternalException(RespCode.LANGAUGE_NOT_EXIST);
+                        throw new InternalException(RespCode.LANGUAGE_DOES_NOT_BE_SUPPORTED);
                     }
                     List<Language> languages = namespace.getLanguages();
                     languages.remove(preLanguage);
@@ -236,36 +247,68 @@ public class I18nHandler {
                 .onErrorResume(error -> ServerResponse.badRequest().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(RespDTO.of(error))));
     }
 
-    private Record coverRecord(Record previous, Record next) {
-        if (next.getKey() != null) {
+    private Record mergeRecord(Record previous, Record next) {
+        Namespace namespace = previous.getNamespace();
+        List<Language> languages = namespace.getLanguages();
+        if (languages == null || languages.isEmpty()) {
+            throw new InternalException(RespCode.NO_LANGUAGE);
+        }
+
+        boolean hasChange = false;
+
+        if (next.getKey() != null && !next.getKey().equals(previous.getKey())) {
+            hasChange = true;
             previous.setKey(next.getKey());
         }
-        if (next.getDescription() != null) {
+        if (next.getDescription() != null && !next.getDescription().equals(previous.getDescription())) {
+            hasChange = true;
             previous.setDescription(next.getDescription());
         }
-        if (next.getValues() != null) {
-            Namespace namespace = previous.getNamespace();
-            List<Language> languages = namespace.getLanguages();
-            List<LanguageValue> preValues = previous.getValues();
-            List<LanguageValue> nextValues = next.getValues();
-            for (Language language : languages) {
-                String languageKey = language.getValue();
-                LanguageValue nextLanguageValue = existLanguageValue(languageKey, nextValues);
-                if (nextLanguageValue == null) {
-                    continue;
-                }
-                LanguageValue preLanguageValue = existLanguageValue(languageKey, preValues);
-                if (preLanguageValue == null) {
-                    throw new InternalException(RespCode.LANGAUGE_NOT_EXIST);
-                }
-                if (!preLanguageValue.getValue().equals(nextLanguageValue.getValue())) {
-                    preLanguageValue.setValue(nextLanguageValue.getValue());
-                    preLanguageValue.setModifyAt(new Date());
-                }
 
+        List<LanguageValue> nextValues = next.getValues();
+        if (nextValues == null || nextValues.isEmpty()) {
+            if (hasChange) {
+                previous.setModifyAt(new Date());
+            }
+            return previous;
+        }
+
+        Language language = null;
+        for (LanguageValue nextValue : nextValues) {
+            language = existLanguage(nextValue.getLanguage(), namespace);
+            if (language == null) {
+                break;
             }
         }
-        previous.setModifyAt(new Date());
+        if (language == null) {
+            throw new InternalException(RespCode.LANGUAGE_DOES_NOT_BE_SUPPORTED);
+        }
+
+        List<LanguageValue> preValues = previous.getValues();
+        if (preValues == null || preValues.isEmpty()) {
+            previous.setValues(nextValues);
+            previous.setModifyAt(new Date());
+            return previous;
+        }
+
+        for (LanguageValue nextValue : nextValues) {
+            LanguageValue preValue = existLanguageValue(nextValue.getLanguage(), preValues);
+            if (preValue == null) {
+                hasChange = true;
+                nextValue.setCreateAt(new Date());
+                preValues.add(nextValue);
+            } else {
+                if (!nextValue.getValue().equals(preValue.getValue())) {
+                    hasChange = true;
+                    preValue.setValue(nextValue.getValue());
+                    preValue.setModifyAt(new Date());
+                }
+            }
+        }
+
+        if (hasChange) {
+            previous.setModifyAt(new Date());
+        }
         return previous;
     }
 
@@ -303,12 +346,12 @@ public class I18nHandler {
         Example<Record> example = Example.of(record);
 
         return this.recordRepository.findOne(example)
-                .switchIfEmpty(Mono.error(new InternalException(RespCode.RECORD_NOT_EXIST)))
+                .switchIfEmpty(Mono.error(new InternalException(RespCode.RECORD_DOES_NOT_EXIST)))
                 .map(model -> {
                     List<LanguageValue> languageValues = model.getValues();
                     LanguageValue languageValue = existLanguageValue(language, languageValues);
                     if (languageValue == null) {
-                        throw new InternalException(RespCode.LANGAUGE_NOT_EXIST);
+                        throw new InternalException(RespCode.LANGUAGE_DOES_NOT_BE_SUPPORTED);
                     }
                     languageValue.setVerifyAt(new Date());
                     return model;
@@ -316,4 +359,12 @@ public class I18nHandler {
                 .flatMap(data -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(data)))
                 .onErrorResume(error -> ServerResponse.badRequest().contentType(MediaType.APPLICATION_JSON_UTF8).body(BodyInserters.fromObject(RespDTO.of(error))));
     }
+
+    public Mono<ServerResponse> importRecords(ServerRequest request) {
+//        String namespaceID = request.pathVariable("namespaceID");
+//        Flux<RecordImportDTO> flux = request.bodyToFlux(RecordImportDTO.class);
+        return ServerResponse.ok().build();
+    }
+
+
 }

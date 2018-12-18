@@ -6,13 +6,13 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * RecordCreateDTO
+ * RecordOperateDTO
  *
  * @author Z
  * @date 2018/11/1
  */
 @Data
-public class RecordCreateDTO {
+public class RecordOperateDTO {
     private String key;
 
     private String description;

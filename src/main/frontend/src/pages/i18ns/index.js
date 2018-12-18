@@ -21,8 +21,14 @@ const I18nsWrapper = styled.div`
 
 class I18ns extends PureComponent {
   componentDidMount() {
-    const { queryNamespaces } = this.props;
-    queryNamespaces();
+    const { queryNamespaces, setNamespaceId } = this.props;
+    queryNamespaces({
+      success(namespaces) {
+        if (namespaces && namespaces.length) {
+          setNamespaceId(namespaces[0].id);
+        }
+      },
+    });
   }
 
   handleChangeTabs = activeKey => {
@@ -55,6 +61,7 @@ class I18ns extends PureComponent {
           activeKey={namespaceId}
           onChange={this.handleChangeTabs}
           type="editable-card"
+          tabPosition="left"
           onEdit={this.handleEditTabs}
         >
           {namespaces.map(namespace => {
