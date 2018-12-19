@@ -61,7 +61,7 @@ class I18ns extends PureComponent {
           activeKey={namespaceId}
           onChange={this.handleChangeTabs}
           type="editable-card"
-          tabPosition="left"
+          // tabPosition="left"
           onEdit={this.handleEditTabs}
         >
           {namespaces.map(namespace => {

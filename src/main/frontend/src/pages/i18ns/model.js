@@ -1,6 +1,8 @@
 import { mapValues } from 'lodash';
 import { createSelector } from 'reselect';
 import { action } from '@/utils/redux';
+import saveAs from 'file-saver';
+import { flatten, unflatten } from 'flat';
 import * as i18n from '@/apis/i18n';
 import { message } from 'antd';
 
@@ -38,6 +40,8 @@ const ActionType = {
   DELETE_RECORD: 'deleteRecord',
   SELECT_RECORDS: 'selectRecords',
   DELETE_RECORDS: 'deleteRecords',
+  EXPORT_RECORDS: 'exportRecords',
+  IMPORT_RECORDS: 'importRecords',
 };
 
 const invorkAction = action();
@@ -261,6 +265,56 @@ export default {
       message.success('成功删除资源。');
       yield put(invorkAction(ActionType.QUERY_RECORDS)(namespaceId));
     },
+    *[ActionType.EXPORT_RECORDS](action, effects) {
+      const { select } = effects;
+      const namespace = yield select(getNamespace);
+      const records = yield select(getRecords);
+      const { languages } = namespace;
+      languages.forEach(language => {
+        const allRecords = records.reduce((allRecords, record) => {
+          const { key, values } = record;
+          const value = values.find(value => language.value === value.language);
+          allRecords[key] = value.value;
+          return allRecords;
+        }, {});
+        const unflattenRecords = unflatten(allRecords, { object: true });
+        const fileData = JSON.stringify(unflattenRecords, null, 2);
+        const blob = new Blob([fileData], { type: 'text/plain;charset=utf-8' });
+        saveAs(blob, `${namespace.name}.${language.value}.json`);
+      });
+    },
+    *[ActionType.IMPORT_RECORDS](action, effects) {
+      const {
+        payload: { namespaceId, language, fileData },
+      } = action;
+      if (!fileData) {
+        return;
+      }
+
+      try {
+        const records = Object.entries(flatten(JSON.parse(fileData))).map(([key, value]) => {
+          return {
+            key,
+            values: [{ language, value }],
+          };
+        });
+
+        const { call, put } = effects;
+
+        for (const record of records) {
+          const { error } = yield call(i18n.createRecord, namespaceId, record);
+          if (error) {
+            message.error('添加资源失败。');
+            return;
+          }
+        }
+
+        message.success('成功添加资源。');
+        yield put(invorkAction(ActionType.QUERY_RECORDS)(namespaceId));
+      } catch (error) {
+        console.error(error);
+      }
+    },
   },
 };
 
@@ -283,6 +337,8 @@ export const modifyRecord = exportAction(ActionType.MODIFY_RECORD);
 export const deleteRecord = exportAction(ActionType.DELETE_RECORD);
 export const selectRecords = exportAction(ActionType.SELECT_RECORDS);
 export const deleteRecords = exportAction(ActionType.DELETE_RECORDS);
+export const importRecords = exportAction(ActionType.IMPORT_RECORDS);
+export const exportRecords = exportAction(ActionType.EXPORT_RECORDS);
 
 const getState = state => {
   return state[namespace];

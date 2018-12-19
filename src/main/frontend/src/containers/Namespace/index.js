@@ -13,6 +13,8 @@ import {
   deleteRecord,
   selectRecords,
   deleteRecords,
+  importRecords,
+  exportRecords,
   getRecords,
   getSelecteds,
 } from '@/pages/i18ns/model';
@@ -20,8 +22,8 @@ import CreateLanguage from './CreateLanguage';
 import CreateRecord from './CreateRecord';
 import ModifyRecord from './ModifyRecord';
 import { LanguageColumn } from './components';
-import { Button, Dropdown, Menu, Modal, Table } from 'antd';
-import { CopyableText, withTooltip } from '@/components';
+import { Button, Dropdown, Menu, Modal, Table, message } from 'antd';
+import { CopyableText, FileUploader, withTooltip } from '@/components';
 import moment from 'moment';
 
 const TooltipButton = withTooltip()(Button);
@@ -51,9 +53,11 @@ class I18nPage extends PureComponent {
     this.state = {
       selectedRowKeys: [],
     };
-
-    this.handleQueryRecords();
   }
+
+  componrntDidMount = () => {
+    this.handleQueryRecords();
+  };
 
   handleQueryRecords = () => {
     const { namespace, queryRecords } = this.props;
@@ -97,6 +101,8 @@ class I18nPage extends PureComponent {
       namespace,
       toggleVisibleCreateLanguage,
       toggleVisibleCreateRecord,
+      exportRecords,
+      importRecords,
     } = this.props;
     const { languages } = namespace;
 
@@ -107,13 +113,54 @@ class I18nPage extends PureComponent {
             添加资源
           </Button>
 
+          <Dropdown.Button
+            overlay={
+              <Menu>
+                {languages.map(({ name: label, value: language }) => (
+                  <Menu.Item key={language}>
+                    <FileUploader
+                      onChange={event => {
+                        const { files } = event.target;
+                        if (!files) {
+                          return;
+                        }
+
+                        const [file] = files;
+                        const { name } = file;
+                        if (!name.match('.+.json$')) {
+                          message.error('目前暂时只支持导入*.json类型的国际化资源文件');
+                          return;
+                        }
+
+                        const fileReader = new FileReader();
+                        fileReader.readAsText(file);
+                        fileReader.onload = event => {
+                          const { result: fileData } = event.target;
+                          const { id: namespaceId } = namespace;
+                          importRecords({ namespaceId, language, fileData });
+                        };
+                      }}
+                      accept="*.json"
+                    >{`${label}资源`}</FileUploader>{' '}
+                  </Menu.Item>
+                ))}
+              </Menu>
+            }
+          >
+            导入资源
+          </Dropdown.Button>
+
+          <Button icon="export" onClick={exportRecords}>
+            导出资源
+          </Button>
+
           {!recordIds.length ? null : (
             <Button type="danger" icon="delete" onClick={this.handleDeleteRecords}>
               删除资源
             </Button>
           )}
 
-          <Button type="primary" icon="plus" onClick={toggleVisibleCreateLanguage}>
+          <Button icon="plus" onClick={toggleVisibleCreateLanguage}>
             添加语种
           </Button>
         </div>
@@ -244,5 +291,7 @@ export default connect(
     deleteRecord,
     selectRecords,
     deleteRecords,
+    importRecords,
+    exportRecords,
   })
 )(I18nPage);
